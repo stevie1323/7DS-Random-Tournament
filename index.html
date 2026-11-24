@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>7DS Torneo Versus - Bo3 / Bo5</title>
+  <style>
+    :root {
+      --bg: #09090b; --surface: #121215; --surface-2: #18181c;
+      --border: #27272a; --text: #f4f4f5; --muted: #71717a;
+      --accent: #f59e0b; --success: #10b981; --danger: #ef4444;
+      --p1: #3b82f6; --p2: #ef4444;
+    }
+    * { box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    html, body { height: 100dvh; max-height: 100dvh; margin: 0; overflow: hidden; background: var(--bg); color: var(--text); }
+    body { padding: 6px 12px; display: flex; flex-direction: column; }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; }
+    .brand span { color: var(--accent); }
+    .controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+    select, input[type="text"] { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 3px 7px; border-radius: 5px; font-size: 0.76rem; outline: none; }
+    select:focus, input:focus { border-color: var(--accent); }
+
+    .btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 3px 8px; border-radius: 5px; font-size: 0.76rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+    .btn:hover { border-color: #52525b; background: #222227; }
+    .btn-primary { background: var(--accent); color: #09090b; border-color: var(--accent); font-weight: 700; }
+    .btn-primary:hover { background: #d97706; }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--border); flex-shrink: 0; font-size: 0.72rem; }
+    .f-group { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; padding-right: 7px; border-right: 1px solid var(--border); }
+    .f-group:last-child { border-right: none; padding-right: 0; }
+    .f-label { color: var(--muted); font-weight: 600; margin-right: 2px; }
+    .chip { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 1px 6px; border-radius: 4px; cursor: pointer; user-select: none; }
+    .chip:hover { color: var(--text); }
+    .chip.active { background: var(--accent); color: #09090b; border-color: var(--accent); font-weight: 700; }
+
+    .vs-header { display: grid; grid-template-columns: 1fr 38px 1fr; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .player-bar { display: flex; align-items: center; justify-content: space-between; padding: 2px 10px; border-radius: 5px; background: var(--surface); border: 1px solid var(--border); }
+    .player-bar.p1 { border-left: 3px solid var(--p1); }
+    .player-bar.p2 { border-right: 3px solid var(--p2); flex-direction: row-reverse; }
+    .player-name { background: transparent !important; border: none !important; font-weight: 700; font-size: 0.86rem; width: 150px; padding: 0 !important; }
+    .p2 .player-name { text-align: right; }
+    .score-box { display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 0.9rem; }
+    .vs-badge { text-align: center; font-weight: 900; color: var(--accent); font-size: 0.8rem; }
+
+    .arena { flex: 1; min-height: 0; display: grid; grid-template-rows: repeat(var(--rounds, 3), minmax(0, 1fr)); gap: 6px; padding-top: 6px; }
+    .vs-row { display: grid; grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr); gap: 8px; min-height: 0; height: 100%; }
+    .row-divider { display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; color: var(--muted); border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+
+    .team-card { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 4px 8px; display: flex; align-items: center; gap: 8px; min-height: 0; height: 100%; overflow: hidden; position: relative; transition: filter 0.25s, opacity 0.25s; }
+    .team-card.p2-card { flex-direction: row-reverse; }
+    .team-card.banned { filter: grayscale(100%); opacity: 0.52; border-color: var(--danger); }
+    .team-card.banned::after { content: "BANEADO"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(239, 68, 68, 0.92); color: #fff; font-weight: 900; font-size: 0.82rem; padding: 3px 12px; border-radius: 4px; letter-spacing: 0.1em; pointer-events: none; z-index: 5; }
+
+    .team-side-controls { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+    .side-btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); width: 26px; height: 26px; border-radius: 5px; cursor: pointer; font-size: 0.78rem; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .side-btn:hover { border-color: #71717a; background: #27272a; }
+    .side-btn.ban-active { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+    .slots-row { flex: 1; height: 100%; min-width: 0; min-height: 0; container-type: size; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; align-items: center; justify-items: center; }
+    .slot { width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+    .slot.sub-slot { border-left: 1px dashed var(--border); padding-left: 6px; }
+
+    .avatar-wrap { position: relative; width: min(100cqh, 22cqw); height: min(100cqh, 22cqw); border-radius: 7px; overflow: hidden; cursor: pointer; border: 2px solid transparent; background: #000; display: flex; align-items: center; justify-content: center; }
+    .avatar-wrap:hover { border-color: var(--accent); }
+    .avatar-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+    .hover-tools { position: absolute; bottom: 2px; right: 2px; display: flex; gap: 2px; opacity: 0; transition: opacity 0.12s; z-index: 3; }
+    .avatar-wrap:hover .hover-tools { opacity: 1; }
+    .float-btn { background: rgba(9, 9, 11, 0.85); border: 1px solid #52525b; color: #fff; border-radius: 4px; font-size: 0.65rem; width: 20px; height: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .float-btn:hover { border-color: var(--accent); background: #000; }
+
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 50; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 400px; max-width: 92vw; max-height: 80vh; display: flex; flex-direction: column; padding: 12px; gap: 8px; }
+    .modal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; max-height: 55vh; }
+    .modal-item { display: flex; align-items: center; gap: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+    .modal-item:hover { background: var(--surface-2); }
+    .modal-item img { width: 34px; height: 34px; object-fit: contain; }
+  </style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span>7DS</span> Versus Randomizer
+    <span id="poolBadge" style="font-size:0.74rem; font-weight:400; color:var(--muted);">(Sin datos)</span>
+  </div>
+  <div class="controls">
+    <select id="seriesMode">
+      <option value="1">1 vs 1</option>
+      <option value="3" selected>Torneo Bo3</option>
+      <option value="5">Torneo Bo5</option>
+    </select>
+    <select id="uniqueRule">
+      <option value="player" selected>Sin repetir por Jugador</option>
+      <option value="series">Sin repetir en toda la serie</option>
+      <option value="team">Sin repetir por Equipo</option>
+    </select>
+    <button class="btn btn-primary" id="rollAllBtn" disabled>🎲 Generar Versus</button>
+    <button class="btn" id="clearBansBtn">Excluidos (<span id="banCount">0</span>)</button>
+    <label class="btn" title="Cargar o reemplazar archivo heroes.json">
+      🔄 Actualizar JSON <input type="file" id="jsonInput" accept=".json" style="display:none;" />
+    </label>
+  </div>
+</header>
+
+<section class="filter-bar">
+  <div class="f-group" id="filter-attribute">
+    <span class="f-label">Attr:</span>
+    <div class="chip" data-val="1">Fuerza</div><div class="chip" data-val="2">PS</div>
+    <div class="chip" data-val="3">Vel</div><div class="chip" data-val="4">Luz</div>
+    <div class="chip" data-val="5">Osc</div><div class="chip" data-val="6">L/O</div>
+  </div>
+  <div class="f-group" id="filter-kind">
+    <span class="f-label">Raza:</span>
+    <div class="chip" data-val="1">Demonio</div><div class="chip" data-val="2">Gigante</div>
+    <div class="chip" data-val="3">Humano</div><div class="chip" data-val="4">Hada</div>
+    <div class="chip" data-val="5">Diosa</div><div class="chip" data-val="6">Desc</div>
+  </div>
+  <div class="f-group" id="filter-startRating">
+    <span class="f-label">Grado:</span>
+    <div class="chip" data-val="3">R</div><div class="chip" data-val="4">SR</div>
+    <div class="chip" data-val="5">SSR</div><div class="chip" data-val="6">UR</div>
+    <div class="chip" id="chipLR" data-val="LR">Solo LR</div>
+  </div>
+  <div class="f-group" id="filter-gender">
+    <span class="f-label">Gén:</span>
+    <div class="chip" data-val="Hombre">H</div><div class="chip" data-val="Mujer">M</div>
+  </div>
+  <div class="f-group" id="filter-jobs">
+    <span class="f-label">Caract:</span>
+    <div class="chip" data-val="6">Pecados</div>
+    <div class="chip" data-val="2">Mandamientos</div>
+    <div class="chip" data-val="5">Arcángeles</div>
+    <div class="chip" data-val="1">Catástrofes</div>
+    <div class="chip" data-val="4">Ragnarok</div>
+    <div class="chip" data-val="8">4 Jinetes</div>
+    <div class="chip" data-val="7">Dioses</div>
+    <div class="chip" data-val="9">Sacrificio</div>
+    <div class="chip" data-val="10">Cross: IF</div>
+    <div class="chip" data-val="3">Collab</div>
+  </div>
+  <div class="f-group">
+    <input type="text" id="excludeGroups" placeholder="Excluir base (ej: Ban)" style="width:125px;" />
+    <button class="btn" id="resetFilters" style="padding:2px 6px;">Limpiar</button>
+  </div>
+</section>
+
+<div class="vs-header">
+  <div class="player-bar p1">
+    <input type="text" class="player-name" value="Jugador 1" />
+    <div class="score-box">
+      <button class="btn" style="padding:1px 6px;" onclick="changeScore(0,-1)">-</button>
+      <span id="score-0">0</span>
+      <button class="btn" style="padding:1px 6px;" onclick="changeScore(0,1)">+</button>
+    </div>
+  </div>
+  <div class="vs-badge">VS</div>
+  <div class="player-bar p2">
+    <input type="text" class="player-name" value="Jugador 2" />
+    <div class="score-box">
+      <button class="btn" style="padding:1px 6px;" onclick="changeScore(1,-1)">-</button>
+      <span id="score-1">0</span>
+      <button class="btn" style="padding:1px 6px;" onclick="changeScore(1,1)">+</button>
+    </div>
+  </div>
+</div>
+
+<main class="arena" id="arena"></main>
+
+<div class="modal-backdrop" id="pickerModal">
+  <div class="modal">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <strong style="font-size:0.85rem;">Elegir personaje manualmente</strong>
+      <button class="btn" onclick="closePicker()">✕</button>
+    </div>
+    <input type="text" id="pickerSearch" placeholder="Buscar por nombre o base..." />
+    <div class="modal-list" id="pickerList"></div>
+  </div>
+</div>
+<script>
+  let allHeroes = new Array();
+  let teamsData = new Array(new Array(), new Array());
+  let bannedTeams = new Set(), bannedHeroes = new Set();
+  let scoreP1 = 0, scoreP2 = 0, pickingTarget = null;
+
+  function cargarDatosEnApp(parsed, guardar) {
+    if (Array.isArray(parsed)) allHeroes = parsed;
+    else if (parsed && typeof parsed === 'object') {
+      const key = Object.keys(parsed).find(k => Array.isArray(parsed[k]));
+      allHeroes = key ? parsed[key] : Object.values(parsed);
+    }
+    if (!allHeroes.length) return;
+
+    if (guardar) {
+      try { localStorage.setItem('7ds_heroes_db', JSON.stringify(allHeroes)); }
+      catch (e) { console.warn("Error guardando en navegador:", e); }
+    }
+    document.getElementById('rollAllBtn').disabled = false;
+    updatePoolBadge();
+    generateAll();
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+  // Cargar automáticamente el heroes.json subido a GitHub si no hay uno más nuevo en memoria
+  fetch('./heroes.json')
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if (data && !allHeroes.length) cargarDatosEnApp(data, false);
+    })
+    .catch(() => {});
+    const guardado = localStorage.getItem('7ds_heroes_db');
+    if (guardado) {
+      try { cargarDatosEnApp(JSON.parse(guardado), false); }
+      catch (e) { localStorage.removeItem('7ds_heroes_db'); }
+    }
+  });
+
+  document.getElementById('jsonInput').addEventListener('change', function(e) {
+    const file = e.target.files.item(0);
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        cargarDatosEnApp(parsed, true);
+        alert("✅ Base de datos guardada (" + allHeroes.length + " personajes). Ya no necesitarás cargarla de nuevo hasta la próxima actualización.");
+      } catch (err) { alert("Error al leer JSON: " + err.message); }
+    };
+    reader.readAsText(file);
+  });
+
+  document.querySelectorAll('.chip').forEach(c => {
+    c.addEventListener('click', () => { c.classList.toggle('active'); updatePoolBadge(); });
+  });
+  document.getElementById('excludeGroups').addEventListener('input', updatePoolBadge);
+
+  window.changeScore = function(pIdx, delta) {
+    if (pIdx === 0) { scoreP1 = Math.max(0, scoreP1 + delta); document.getElementById('score-0').textContent = scoreP1; }
+    else { scoreP2 = Math.max(0, scoreP2 + delta); document.getElementById('score-1').textContent = scoreP2; }
+  };
+
+  function getActiveVals(cid) {
+    return Array.from(document.querySelectorAll('#' + cid + ' .chip.active')).map(c => c.dataset.val);
+  }
+
+  function getFilteredPool() {
+    const attrs = getActiveVals('filter-attribute').map(Number);
+    const kinds = getActiveVals('filter-kind').map(Number);
+    const grades = getActiveVals('filter-startRating').filter(v => v !== 'LR').map(Number);
+    const onlyLR = document.getElementById('chipLR').classList.contains('active');
+    const genders = getActiveVals('filter-gender');
+    const reqJobs = getActiveVals('filter-jobs').map(Number);
+    const exGroups = document.getElementById('excludeGroups').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+
+    return allHeroes.filter(h => {
+      if (!h || !h.id || bannedHeroes.has(h.id)) return false;
+      if (attrs.length && !attrs.includes(h.attribute)) return false;
+      if (kinds.length && !kinds.includes(h.kind)) return false;
+      if (grades.length && !grades.includes(h.startRating)) return false;
+      if (onlyLR && h.rating < 7) return false;
+      if (genders.length && !genders.includes(h.gender)) return false;
+      if (exGroups.length && h.groupName && exGroups.includes(h.groupName.toLowerCase())) return false;
+      const hJobs = Array.isArray(h.jobs) ? h.jobs : new Array();
+      if (reqJobs.length && !reqJobs.some(j => hJobs.includes(j))) return false;
+      return true;
+    });
+  }
+
+  function updatePoolBadge() {
+    document.getElementById('poolBadge').textContent = "(" + getFilteredPool().length + " disp.)";
+    document.getElementById('banCount').textContent = bannedHeroes.size;
+  }
+
+  function getUsedSets(pIdx, rIdx, sIdx) {
+    const seriesIds = new Set(), seriesGroups = new Set();
+    const playerIds = new Set(), playerGroups = new Set();
+    const teamGroups = new Set();
+
+    for (let p = 0; p < 2; p++) {
+      const pTeams = teamsData.at(p) || new Array();
+      pTeams.forEach((team, r) => {
+        if (!team) return;
+        team.forEach((hero, s) => {
+          if (!hero || (p === pIdx && r === rIdx && s === sIdx)) return;
+          seriesIds.add(hero.id);
+          if (hero.groupName) seriesGroups.add(hero.groupName);
+          if (p === pIdx) {
+            playerIds.add(hero.id);
+            if (hero.groupName) {
+              playerGroups.add(hero.groupName);
+              if (r === rIdx) teamGroups.add(hero.groupName);
+            }
+          }
+        });
+      });
+    }
+    return { seriesIds, seriesGroups, playerIds, playerGroups, teamGroups };
+  }
+
+  function pickHero(pool, sets) {
+    const rule = document.getElementById('uniqueRule').value;
+    const candidates = pool.filter(h => {
+      if (rule === 'series') {
+        if (sets.seriesIds.has(h.id)) return false;
+        if (h.groupName && sets.seriesGroups.has(h.groupName)) return false;
+      } else if (rule === 'player') {
+        if (sets.playerIds.has(h.id)) return false;
+        if (h.groupName && sets.playerGroups.has(h.groupName)) return false;
+      } else {
+        if (sets.playerIds.has(h.id)) return false;
+        if (h.groupName && sets.teamGroups.has(h.groupName)) return false;
+      }
+      return true;
+    });
+    if (!candidates.length) return null;
+    return candidates.at(Math.floor(Math.random() * candidates.length));
+  }
+  function generateAll() {
+    const rounds = parseInt(document.getElementById('seriesMode').value, 10);
+    const pool = getFilteredPool();
+    bannedTeams.clear();
+
+    for (let p = 0; p < 2; p++) {
+      const newP = Array.from({ length: rounds }, () => new Array(null, null, null, null));
+      teamsData.splice(p, 1, newP);
+    }
+
+    for (let r = 0; r < rounds; r++) {
+      for (let p = 0; p < 2; p++) {
+        for (let s = 0; s < 4; s++) {
+          const sets = getUsedSets(p, r, s);
+          teamsData.at(p).at(r).splice(s, 1, pickHero(pool, sets));
+        }
+      }
+    }
+    renderArena();
+  }
+
+  window.rerollTeam = function(pIdx, rIdx) {
+    const pool = getFilteredPool();
+    for (let s = 0; s < 4; s++) teamsData.at(pIdx).at(rIdx).splice(s, 1, null);
+    for (let s = 0; s < 4; s++) {
+      const sets = getUsedSets(pIdx, rIdx, s);
+      teamsData.at(pIdx).at(rIdx).splice(s, 1, pickHero(pool, sets));
+    }
+    renderArena();
+  };
+
+  window.rerollSlot = function(pIdx, rIdx, sIdx) {
+    const sets = getUsedSets(pIdx, rIdx, sIdx);
+    const picked = pickHero(getFilteredPool(), sets);
+    if (picked) { teamsData.at(pIdx).at(rIdx).splice(sIdx, 1, picked); renderArena(); }
+    else alert("No quedan más héroes disponibles con los filtros actuales.");
+  };
+
+  window.toggleTeamBan = function(pIdx, rIdx) {
+    const key = pIdx + "-" + rIdx;
+    bannedTeams.has(key) ? bannedTeams.delete(key) : bannedTeams.add(key);
+    renderArena();
+  };
+
+  window.banHeroAndReplace = function(ev, pIdx, rIdx, sIdx) {
+    ev.stopPropagation();
+    const hero = teamsData.at(pIdx).at(rIdx).at(sIdx);
+    if (!hero) return;
+    bannedHeroes.add(hero.id);
+    updatePoolBadge();
+    rerollSlot(pIdx, rIdx, sIdx);
+  };
+
+  window.openPicker = function(ev, pIdx, rIdx, sIdx) {
+    ev.stopPropagation();
+    pickingTarget = { pIdx, rIdx, sIdx };
+    document.getElementById('pickerSearch').value = '';
+    renderPickerList('');
+    document.getElementById('pickerModal').style.display = 'flex';
+    document.getElementById('pickerSearch').focus();
+  };
+
+  window.closePicker = function() { document.getElementById('pickerModal').style.display = 'none'; pickingTarget = null; };
+
+  function renderPickerList(q) {
+    const query = q.toLowerCase();
+    const matches = allHeroes.filter(h => h && h.id && ((h.name && h.name.toLowerCase().includes(query)) || (h.groupName && h.groupName.toLowerCase().includes(query)))).slice(0, 40);
+    document.getElementById('pickerList').innerHTML = matches.map(h => `
+      <div class="modal-item" onclick="selectManualHero(` + h.id + `)">
+        <img src="https://cdn.7dshub.com/images/item/` + h.id + `.png" alt="` + h.name + `" />
+        <div><div style="font-weight:600;">` + h.name + `</div><div style="font-size:0.7rem; color:var(--muted);">Base: ` + (h.groupName || '-') + `</div></div>
+      </div>`).join('');
+  }
+
+  window.selectManualHero = function(heroId) {
+    const hero = allHeroes.find(h => h.id === heroId);
+    if (pickingTarget && hero) {
+      teamsData.at(pickingTarget.pIdx).at(pickingTarget.rIdx).splice(pickingTarget.sIdx, 1, hero);
+      renderArena();
+    }
+    closePicker();
+  };
+
+  document.getElementById('pickerSearch').addEventListener('input', e => renderPickerList(e.target.value));
+
+  function buildTeamCard(pIdx, rIdx) {
+    const team = teamsData.at(pIdx).at(rIdx) || new Array(null, null, null, null);
+    const isBanned = bannedTeams.has(pIdx + "-" + rIdx);
+    const pClass = pIdx === 1 ? "p2-card" : "";
+
+    const slotsHtml = team.map((h, sIdx) => {
+      const subClass = sIdx === 3 ? "sub-slot" : "";
+      if (!h) return `<div class="slot ` + subClass + `"><div class="avatar-wrap" onclick="rerollSlot(` + pIdx + `,` + rIdx + `,` + sIdx + `)">Vacío</div></div>`;
+      return `
+        <div class="slot ` + subClass + `">
+          <div class="avatar-wrap" onclick="rerollSlot(` + pIdx + `,` + rIdx + `,` + sIdx + `)" title="` + h.name + ` (Clic para cambiar al azar)">
+            <img src="https://cdn.7dshub.com/images/item/` + h.id + `.png" alt="` + h.name + `" />
+            <div class="hover-tools">
+              <button class="float-btn" onclick="openPicker(event,` + pIdx + `,` + rIdx + `,` + sIdx + `)" title="Elegir manual">🔍</button>
+              <button class="float-btn" onclick="banHeroAndReplace(event,` + pIdx + `,` + rIdx + `,` + sIdx + `)" title="Excluir héroe">🚫</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="team-card ` + pClass + ` ` + (isBanned ? 'banned' : '') + `">
+        <div class="team-side-controls">
+          <button class="side-btn ` + (isBanned ? 'ban-active' : '') + `" onclick="toggleTeamBan(` + pIdx + `,` + rIdx + `)" title="` + (isBanned ? 'Desbanear equipo' : 'Banear equipo') + `">🚫</button>
+          <button class="side-btn" onclick="rerollTeam(` + pIdx + `,` + rIdx + `)" title="Reroll equipo">🎲</button>
+        </div>
+        <div class="slots-row">` + slotsHtml + `</div>
+      </div>`;
+  }
+
+  function renderArena() {
+    const arena = document.getElementById('arena');
+    const rounds = parseInt(document.getElementById('seriesMode').value, 10);
+    arena.style.setProperty('--rounds', rounds);
+    let html = '';
+    for (let r = 0; r < rounds; r++) {
+      html += `
+        <div class="vs-row">
+          ` + buildTeamCard(0, r) + `
+          <div class="row-divider">R` + (r + 1) + `</div>
+          ` + buildTeamCard(1, r) + `
+        </div>`;
+    }
+    arena.innerHTML = html;
+  }
+
+  document.getElementById('rollAllBtn').addEventListener('click', generateAll);
+  document.getElementById('seriesMode').addEventListener('change', () => { if (allHeroes.length) generateAll(); });
+  document.getElementById('clearBansBtn').addEventListener('click', () => { bannedHeroes.clear(); updatePoolBadge(); });
+  document.getElementById('resetFilters').addEventListener('click', () => {
+    document.querySelectorAll('.chip.active').forEach(c => c.classList.remove('active'));
+    document.getElementById('excludeGroups').value = '';
+    updatePoolBadge();
+  });
+</script>
+</body>
+</html>
